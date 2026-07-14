@@ -1,0 +1,6 @@
+{
+  "name": "CreatorPilot AI",
+  "description": "Enterprise-grade AI-powered SaaS platform and dashboard for content creators to audit profiles, generate viral captions, scripts, hooks, and analyze metrics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

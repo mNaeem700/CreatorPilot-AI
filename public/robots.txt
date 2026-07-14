@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /blog
+Disallow: /api/
+Disallow: /admin
+
+Sitemap: https://creatorpilot.ai/sitemap.xml

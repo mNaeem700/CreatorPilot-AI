@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mnaeemkachala@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users Collection rules
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      
+      // Allow creation if user is initializing their own profile with standard default values
+      allow create: if isSignedIn() && isOwner(userId) && 
+                      incoming().uid == request.auth.uid &&
+                      incoming().email == request.auth.token.email &&
+                      incoming().credits == 10 &&
+                      incoming().maxCredits == 10 &&
+                      incoming().plan == 'free' &&
+                      incoming().role == 'user' &&
+                      incoming().createdAt is string;
+
+      // Allow users to update their displayName or photoURL, but prevent changing credits/plan/role directly
+      allow update: if isSignedIn() && isOwner(userId) &&
+                      incoming().uid == existing().uid &&
+                      incoming().email == existing().email &&
+                      incoming().createdAt == existing().createdAt &&
+                      incoming().role == existing().role &&
+                      // If NOT admin, must protect credits, plan, and maxCredits
+                      (incoming().credits == existing().credits && incoming().plan == existing().plan && incoming().maxCredits == existing().maxCredits) ||
+                      isAdmin();
+    }
+
+    // History subcollection
+    match /users/{userId}/history/{historyId} {
+      allow read, write: if isSignedIn() && (isOwner(userId) || isAdmin()) && isValidId(historyId);
+    }
+
+    // Support tickets
+    match /tickets/{ticketId} {
+      allow get, create: if isSignedIn() && isValidId(ticketId);
+      allow list, update, delete: if isAdmin() && isValidId(ticketId);
+    }
+
+    // Admins Collection (Only readable by admins)
+    match /admins/{adminId} {
+      allow read, write: if isAdmin() && isValidId(adminId);
+    }
+  }
+}
