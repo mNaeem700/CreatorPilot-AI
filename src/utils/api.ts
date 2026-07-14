@@ -40,10 +40,15 @@ export async function apiFetch(
   }
 
   // 2. Perform consistent request logging
-  console.log(`[API Request] [${method}] ${urlString}`);
+  const apiBase = (import.meta as any).env.VITE_API_URL || "";
+  const requestUrl = (urlString.startsWith("/") && !urlString.startsWith("//")) 
+    ? `${apiBase}${urlString}` 
+    : urlString;
+
+  console.log(`[API Request] [${method}] ${requestUrl} (mapped from ${urlString})`);
 
   try {
-    const response = await fetch(input, {
+    const response = await fetch(requestUrl, {
       ...init,
       headers,
     });
