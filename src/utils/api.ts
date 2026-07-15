@@ -40,10 +40,49 @@ export async function apiFetch(
   }
 
   // 2. Perform consistent request logging
-  const apiBase = (import.meta as any).env.VITE_API_URL || "";
-  const requestUrl = (urlString.startsWith("/") && !urlString.startsWith("//")) 
-    ? `${apiBase}${urlString}` 
-    : urlString;
+  let apiBase = "";
+  try {
+    // @ts-ignore
+    apiBase = import.meta.env.VITE_API_URL || "";
+  } catch (e) {
+    console.warn("[API Utility] import.meta.env is not available, using empty base:", e);
+  }
+  
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+    const isAIS = hostname.includes("ai.studio") || hostname.includes("googleusercontent.com") || hostname.includes("run.app");
+    
+    if (isLocal || isAIS) {
+      // In local development or AI Studio preview, we are in a co-located full-stack environment.
+      // We must make API calls relative to the current site (which proxies to the co-located backend).
+      // If apiBase points to an external site like netlify, it will break local development, so reset it.
+      if (apiBase && !apiBase.includes(hostname) && !apiBase.includes("localhost") && !apiBase.includes("127.0.0.1")) {
+        console.log(`[API Utility] Co-located environment detected. Overriding external VITE_API_URL (${apiBase}) to relative paths.`);
+        apiBase = "";
+      }
+    } else {
+      // Decoupled static deployment (e.g., Netlify).
+      // We MUST point all API requests to our live Cloud Run server.
+      // If VITE_API_URL is empty or points back to the Netlify front-end itself, override it.
+      const isApiBasePointingToSelf = !apiBase || apiBase.includes(hostname) || apiBase.includes("netlify.app") || apiBase.includes("localhost");
+      if (isApiBasePointingToSelf) {
+        console.log("[API Utility] Static production environment detected. Overriding API base to Cloud Run backend.");
+        apiBase = "https://ais-pre-x4ou4tthrt7geiseegurw2-321596100725.asia-southeast1.run.app";
+      }
+    }
+  }
+
+  // Clean up any double slashes when combining apiBase and urlString
+  let requestUrl = urlString;
+  if (urlString.startsWith("/") && !urlString.startsWith("//")) {
+    if (apiBase) {
+      const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
+      requestUrl = `${base}${urlString}`;
+    } else {
+      requestUrl = urlString;
+    }
+  }
 
   console.log(`[API Request] [${method}] ${requestUrl} (mapped from ${urlString})`);
 

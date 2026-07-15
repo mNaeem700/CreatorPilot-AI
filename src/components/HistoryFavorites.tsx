@@ -14,7 +14,6 @@ import {
   FileDown
 } from "lucide-react";
 import { HistoryEntry } from "../types";
-import { jsPDF } from "jspdf";
 import Markdown from "react-markdown";
 
 interface HistoryFavoritesProps {
@@ -85,7 +84,8 @@ export default function HistoryFavorites({ history, onToggleFavorite, onDeleteHi
   };
 
   // Export selected entry as PDF
-  const handleExportEntryPDF = (entry: HistoryEntry) => {
+  const handleExportEntryPDF = async (entry: HistoryEntry) => {
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({
       orientation: "portrait",
       unit: "mm",
@@ -220,8 +220,9 @@ export default function HistoryFavorites({ history, onToggleFavorite, onDeleteHi
   };
 
   // Bulk Export PDF report
-  const handleExportAllPDF = () => {
+  const handleExportAllPDF = async () => {
     if (filteredEntries.length === 0) return;
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({
       orientation: "portrait",
       unit: "mm",
